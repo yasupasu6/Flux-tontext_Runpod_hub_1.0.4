@@ -8,16 +8,16 @@ import uuid
 import logging
 import urllib.request
 import urllib.parse
-import binascii # Base64 에러 처리를 위해 import
+import binascii # Import for Base64 error handling
 
 
-# 로깅 설정
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# CUDA 검사 및 설정
+# CUDA check and configuration
 def check_cuda_availability():
-    """CUDA 사용 가능 여부를 확인하고 환경 변수를 설정합니다."""
+    """Check CUDA availability and set environment variables."""
     try:
         import torch
         if torch.cuda.is_available():
@@ -31,7 +31,7 @@ def check_cuda_availability():
         logger.error(f"❌ CUDA check failed: {e}")
         raise RuntimeError(f"CUDA initialization failed: {e}")
 
-# CUDA 검사 실행
+# Execute CUDA check
 try:
     cuda_available = check_cuda_availability()
     if not cuda_available:
@@ -47,32 +47,32 @@ server_address = os.getenv('SERVER_ADDRESS', '127.0.0.1')
 client_id = str(uuid.uuid4())
 def save_data_if_base64(data_input, temp_dir, output_filename):
     """
-    입력 데이터가 Base64 문자열인지 확인하고, 맞다면 파일로 저장 후 경로를 반환합니다.
-    만약 일반 경로 문자열이라면 그대로 반환합니다.
+    Check if input data is a Base64 string, and if so, save it as a file and return the path.
+    If it's a regular path string, return it as is.
     """
-    # 입력값이 문자열이 아니면 그대로 반환
+    # Return as is if input is not a string
     if not isinstance(data_input, str):
         return data_input
 
     try:
-        # Base64 문자열은 디코딩을 시도하면 성공합니다.
+        # Base64 strings will succeed when decoding is attempted
         decoded_data = base64.b64decode(data_input)
         
-        # 디렉토리가 존재하지 않으면 생성
+        # Create directory if it doesn't exist
         os.makedirs(temp_dir, exist_ok=True)
         
-        # 디코딩에 성공하면, 임시 파일로 저장합니다.
+        # If decoding succeeds, save as a temporary file
         file_path = os.path.abspath(os.path.join(temp_dir, output_filename))
-        with open(file_path, 'wb') as f: # 바이너리 쓰기 모드('wb')로 저장
+        with open(file_path, 'wb') as f: # Save in binary write mode ('wb')
             f.write(decoded_data)
         
-        # 저장된 파일의 경로를 반환합니다.
-        print(f"✅ Base64 입력을 '{file_path}' 파일로 저장했습니다.")
+        # Return the path of the saved file
+        print(f"✅ Saved Base64 input to '{file_path}' file.")
         return file_path
 
     except (binascii.Error, ValueError):
-        # 디코딩에 실패하면, 일반 경로로 간주하고 원래 값을 그대로 반환합니다.
-        print(f"➡️ '{data_input}'은(는) 파일 경로로 처리합니다.")
+        # If decoding fails, treat as a regular path and return the original value
+        print(f"➡️ '{data_input}' will be treated as a file path.")
         return data_input
     
 def queue_prompt(prompt):
@@ -118,7 +118,7 @@ def get_images(ws, prompt):
         if 'images' in node_output:
             for image in node_output['images']:
                 image_data = get_image(image['filename'], image['subfolder'], image['type'])
-                # bytes 객체를 base64로 인코딩하여 JSON 직렬화 가능하게 변환
+                # Encode bytes object to base64 to make it JSON serializable
                 if isinstance(image_data, bytes):
                     import base64
                     image_data = base64.b64encode(image_data).decode('utf-8')
@@ -138,8 +138,8 @@ def handler(job):
     task_id = f"task_{uuid.uuid4()}"
 
     image_input = job_input["image_path"]
-    # 헬퍼 함수를 사용해 이미지 파일 경로 확보 (Base64 또는 Path)
-    # 이미지 확장자를 알 수 없으므로 .jpg로 가정하거나, 입력에서 받아야 합니다.
+    # Use helper function to obtain image file path (Base64 or Path)
+    # Image extension is unknown, so assume .jpg or receive it from input
     if image_input == "/example_image.png":
         image_path = "/example_image.png"
     else:
@@ -160,50 +160,50 @@ def handler(job):
     ws_url = f"ws://{server_address}:8188/ws?clientId={client_id}"
     logger.info(f"Connecting to WebSocket: {ws_url}")
     
-    # 먼저 HTTP 연결이 가능한지 확인
+    # First check if HTTP connection is possible
     http_url = f"http://{server_address}:8188/"
     logger.info(f"Checking HTTP connection to: {http_url}")
     
-    # HTTP 연결 확인 (최대 1분)
+    # HTTP connection check (max 1 minute)
     max_http_attempts = 180
     for http_attempt in range(max_http_attempts):
         try:
             import urllib.request
             response = urllib.request.urlopen(http_url, timeout=5)
-            logger.info(f"HTTP 연결 성공 (시도 {http_attempt+1})")
+            logger.info(f"HTTP connection successful (attempt {http_attempt+1})")
             break
         except Exception as e:
-            logger.warning(f"HTTP 연결 실패 (시도 {http_attempt+1}/{max_http_attempts}): {e}")
+            logger.warning(f"HTTP connection failed (attempt {http_attempt+1}/{max_http_attempts}): {e}")
             if http_attempt == max_http_attempts - 1:
-                raise Exception("ComfyUI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
+                raise Exception("Cannot connect to ComfyUI server. Please check if the server is running.")
             time.sleep(1)
     
     ws = websocket.WebSocket()
-    # 웹소켓 연결 시도 (최대 3분)
-    max_attempts = int(180/5)  # 3분 (1초에 한 번씩 시도)
+    # WebSocket connection attempt (max 3 minutes)
+    max_attempts = int(180/5)  # 3 minutes (attempt once per second)
     for attempt in range(max_attempts):
         import time
         try:
             ws.connect(ws_url)
-            logger.info(f"웹소켓 연결 성공 (시도 {attempt+1})")
+            logger.info(f"WebSocket connection successful (attempt {attempt+1})")
             break
         except Exception as e:
-            logger.warning(f"웹소켓 연결 실패 (시도 {attempt+1}/{max_attempts}): {e}")
+            logger.warning(f"WebSocket connection failed (attempt {attempt+1}/{max_attempts}): {e}")
             if attempt == max_attempts - 1:
-                raise Exception("웹소켓 연결 시간 초과 (3분)")
+                raise Exception("WebSocket connection timeout (3 minutes)")
             time.sleep(5)
     images = get_images(ws, prompt)
     ws.close()
 
-    # 이미지가 없는 경우 처리
+    # Handle case when no images are generated
     if not images:
-        return {"error": "이미지를 생성할 수 없습니다."}
+        return {"error": "Unable to generate images."}
     
-    # 첫 번째 이미지 반환
+    # Return the first image
     for node_id in images:
         if images[node_id]:
             return {"image": images[node_id][0]}
     
-    return {"error": "이미지를 찾을 수 없습니다."}
+    return {"error": "No images found."}
 
 runpod.serverless.start({"handler": handler})

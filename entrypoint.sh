@@ -3,10 +3,10 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# CUDA 검사 및 설정
+# CUDA check and configuration
 echo "Checking CUDA availability..."
 
-# Python을 통한 CUDA 검사
+# CUDA check via Python
 python_cuda_check() {
     python3 -c "
 import torch
@@ -23,7 +23,7 @@ except Exception as e:
 " 2>/dev/null
 }
 
-# CUDA 검사 실행
+# Execute CUDA check
 cuda_status=$(python_cuda_check)
 case $? in
     0)
@@ -43,7 +43,7 @@ case $? in
         ;;
 esac
 
-# 추가적인 nvidia-smi 검사
+# Additional nvidia-smi check
 if command -v nvidia-smi &> /dev/null; then
     if nvidia-smi &> /dev/null; then
         echo "✅ NVIDIA driver working (nvidia-smi check)"
@@ -58,7 +58,7 @@ else
     exit 1
 fi
 
-# CUDA 환경 변수 설정
+# Set CUDA environment variables
 echo "Using CUDA device: $CUDA_VISIBLE_DEVICES"
 
 # Start ComfyUI in the background
@@ -67,7 +67,7 @@ python /ComfyUI/main.py --listen --use-sage-attention &
 
 # Wait for ComfyUI to be ready
 echo "Waiting for ComfyUI to be ready..."
-max_wait=120  # 최대 2분 대기
+max_wait=120  # Maximum 2 minute wait
 wait_count=0
 while [ $wait_count -lt $max_wait ]; do
     if curl -s http://127.0.0.1:8188/ > /dev/null 2>&1; then
@@ -85,6 +85,6 @@ if [ $wait_count -ge $max_wait ]; then
 fi
 
 # Start the handler in the foreground
-# 이 스크립트가 컨테이너의 메인 프로세스가 됩니다.
+# This script becomes the main process of the container
 echo "Starting the handler..."
 exec python handler.py
