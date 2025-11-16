@@ -128,8 +128,18 @@ def get_images(ws, prompt):
     return output_images
 
 def load_workflow(workflow_path):
-    with open(workflow_path, 'r') as file:
-        return json.load(file)
+    """Load workflow JSON file with error handling."""
+    if not os.path.exists(workflow_path):
+        error_msg = f"Workflow file not found: {workflow_path}"
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+    try:
+        with open(workflow_path, 'r') as file:
+            return json.load(file)
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON in workflow file {workflow_path}: {e}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
 def handler(job):
     job_input = job.get("input", {})
@@ -146,7 +156,11 @@ def handler(job):
         image_path = save_data_if_base64(image_input, task_id, "input_image.jpg")
     
 
-    prompt = load_workflow("/flux_kontext_example.json")
+    # Get the directory where handler.py is located
+    handler_dir = os.path.dirname(os.path.abspath(__file__))
+    workflow_path = os.path.join(handler_dir, "flux_kontext_example.json")
+    logger.info(f"Loading workflow from: {workflow_path}")
+    prompt = load_workflow(workflow_path)
 
     prompt["41"]["inputs"]["image"] = image_path
     prompt["6"]["inputs"]["text"] = job_input["prompt"]
